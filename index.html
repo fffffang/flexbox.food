@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>各國美食對對碰 - 用Flexbox將各國特色美食對應到正確國家中</title>
+  
+  <!-- Vue 3 & Tailwind CSS -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    /* 核心佈局與動畫 */
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; background-color: #111827; color: #fff; }
+    
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #1f2937; }
+    ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+
+    /* CSS 幾何國旗繪製 */
+    .flag { width: 64px; height: 48px; border-radius: 6px; position: relative; overflow: hidden; opacity: 0.85; border: 2px dashed rgba(255,255,255,0.6); box-shadow: 0 4px 6px rgba(0,0,0,0.3); flex-shrink: 0; transition: all 0.3s ease; }
+    .flag-tw { background: #ce1126; } 
+    .flag-tw::before { content:''; position:absolute; top:0; left:0; width:50%; height:50%; background:#0038a8; }
+    .flag-tw::after { content:'☀️'; position:absolute; top:-2px; left:6px; font-size:14px; color:white; }
+    
+    .flag-jp { background: white; display:flex; justify-content:center; align-items:center; } 
+    .flag-jp::after { content:''; width:24px; height:24px; background:#bc002d; border-radius:50%; }
+    
+    .flag-it { background: linear-gradient(to right, #009246 33.3%, white 33.3%, white 66.6%, #ce2b37 66.6%); } 
+    .flag-fr { background: linear-gradient(to right, #002395 33.3%, white 33.3%, white 66.6%, #ed2939 66.6%); } 
+    
+    /* 韓國國旗 */
+    .flag-kr { background: white; position: relative; } 
+    .flag-kr::after { 
+      content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 22px; height: 22px; border-radius: 50%;
+      background: linear-gradient(to bottom, #c60c30 50%, #003478 50%);
+    }
+    .flag-kr::before { 
+      content: '☰\00a0\00a0\00a0\00a0\00a0\00a0\00a0☵\A\A\A\A\A☲\00a0\00a0\00a0\00a0\00a0\00a0\00a0☷'; 
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      font-size: 11px; color: black; font-weight: bold; white-space: pre; 
+      text-align: center; line-height: 0.8; letter-spacing: 1px;
+    }
+    
+    .flag-us { background: repeating-linear-gradient(to bottom, #B22234, #B22234 10%, white 10%, white 20%); } 
+    .flag-us::before { content:'⭐'; position:absolute; top:0; left:0; width:40%; height:50%; background:#3C3B6E; color:white; font-size:8px; display:flex; padding:2px; flex-wrap:wrap; overflow:hidden;}
+    
+    .flag-mx { background: linear-gradient(to right, #006847 33.3%, white 33.3%, white 66.6%, #ce1126 66.6%); display:flex; justify-content:center; align-items:center; } 
+    .flag-mx::after { content:'🦅'; font-size:14px; }
+    
+    .flag-in { background: linear-gradient(to bottom, #ff9933 33.3%, white 33.3%, white 66.6%, #138808 66.6%); display:flex; justify-content:center; align-items:center; } 
+    .flag-in::after { content:'❂'; color: #000080; font-size: 16px; }
+    
+    .flag-de { background: linear-gradient(to bottom, black 33.3%, #dd0000 33.3%, #dd0000 66.6%, #ffce00 66.6%); } 
+    
+    .flag-vn { background: #da251d; display:flex; justify-content:center; align-items:center; } 
+    .flag-vn::after { content:'⭐'; color: yellow; font-size: 24px; }
+    
+    .flag-gb { 
+      background:
+        linear-gradient(90deg, transparent 42%, #C8102E 42%, #C8102E 58%, transparent 58%),
+        linear-gradient(0deg, transparent 38%, #C8102E 38%, #C8102E 62%, transparent 62%),
+        linear-gradient(90deg, transparent 38%, #fff 38%, #fff 62%, transparent 62%),
+        linear-gradient(0deg, transparent 32%, #fff 32%, #fff 68%, transparent 68%),
+        linear-gradient(31deg, transparent 46%, #C8102E 46%, #C8102E 54%, transparent 54%),
+        linear-gradient(-31deg, transparent 46%, #C8102E 46%, #C8102E 54%, transparent 54%),
+        linear-gradient(31deg, transparent 42%, #fff 42%, #fff 58%, transparent 58%),
+        linear-gradient(-31deg, transparent 42%, #fff 42%, #fff 58%, transparent 58%),
+        #012169;
+    }
+
+    /* 食物 Item */
+    .food-item { width: 64px; height: 48px; display: flex; justify-content: center; align-items: center; font-size: 36px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5)); flex-shrink: 0; z-index: 10; animation: bounce-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+    /* 背景區塊 */
+    .bento-board { background-color: #1f2937; background-image: radial-gradient(#374151 1px, transparent 1px); background-size: 20px 20px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); }
+    .sub-bento { background-color: rgba(31, 41, 55, 0.8); border: 2px dashed #4b5563; border-radius: 8px; padding: 8px; min-height: 80px; }
+
+    /* 動畫特效 */
+    .success-overlay { animation: fade-in 0.3s ease-out forwards; backdrop-filter: blur(4px); }
+    @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes bounce-in { 0% { transform: scale(0); } 80% { transform: scale(1.1); } 100% { transform: scale(1); } }
+    
+    .god-glow { animation: god-glow-anim 0.8s ease-out; }
+    @keyframes god-glow-anim { 0% { filter: drop-shadow(0 0 0 rgba(250, 204, 21, 0)); transform: scale(1); } 50% { filter: drop-shadow(0 0 30px rgba(250, 204, 21, 1)); transform: scale(1.2); } 100% { filter: drop-shadow(0 0 0 rgba(250, 204, 21, 0)); transform: scale(1); } }
+    
+    .tutorial-highlight { 
+      position: relative !important; 
+      z-index: 110 !important; 
+      box-shadow: 0 0 0 4px rgba(251, 191, 36, 1), 0 0 40px rgba(251, 191, 36, 0.6) !important; 
+      border-radius: 0.75rem; 
+      pointer-events: auto;
+    }
+    
+    .confetti { position: absolute; z-index: 1000; animation: fall linear forwards; }
+    @keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
+    
+    .start-bg-item { position: absolute; opacity: 0.3; filter: blur(1px); animation: float-up linear infinite; pointer-events: none; }
+    @keyframes float-up {
+      0% { transform: translateY(110vh) rotate(0deg); opacity: 0; }
+      10% { opacity: 0.4; }
+      90% { opacity: 0.4; }
+      100% { transform: translateY(-20vh) rotate(360deg); opacity: 0; }
+    }
+    
+    .god-bounce { animation: god-float 3s ease-in-out infinite; }
+    @keyframes god-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+
+    /* 程式碼編輯器樣式 */
+    .editor-line { display: flex; font-family: 'Consolas', 'Courier New', monospace; line-height: 1.5; font-size: 1.125rem; }
+    .line-number { width: 30px; text-align: right; padding-right: 10px; color: #4b5563; user-select: none; }
+    .code-content { flex: 1; padding-left: 10px; color: #d1d5db; }
+    .keyword { color: #c678dd; }
+    .selector { color: #e5c07b; }
+    .property { color: #61afef; }
+    .value { color: #98c379; }
+    .punctuation { color: #abb2bf; }
+  </style>
+</head>
+<body>
+  <div id="app" class="h-screen w-screen flex flex-col">
+    
+    <!-- 開始畫面 -->
+    <div v-show="gameState === 'start'" class="absolute inset-0 z-50 flex items-center justify-center bg-gray-900 overflow-hidden">
+      <div v-for="(item, i) in startScreenItems" :key="'bg-'+i" class="start-bg-item" :style="item.style">
+        {{ item.emoji }}
+      </div>
+      <div class="relative z-10 text-center flex flex-col items-center bg-gray-900/60 p-8 md:p-12 rounded-3xl backdrop-blur-sm border border-gray-700 shadow-2xl max-h-[90vh] overflow-y-auto w-11/12 max-w-4xl">
+        <div class="text-[6rem] md:text-[10rem] mb-4 god-bounce drop-shadow-[0_0_50px_rgba(250,204,21,0.6)] shrink-0">👨‍🍳</div>
+        <h1 class="text-4xl md:text-7xl font-extrabold mb-4 tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-blue-500 to-purple-500 drop-shadow-[0_0_20px_rgba(59,130,246,0.5)] shrink-0">
+          各國美食對對碰
+        </h1>
+        <p class="text-xl md:text-2xl text-gray-300 mb-8 font-light tracking-wide shrink-0">用 Flexbox 將各國特色美食對應到正確國家中</p>
+        <button @click="startGame" class="px-8 py-3 md:px-10 md:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-full text-xl md:text-2xl font-bold transition-transform transform hover:scale-105 shadow-[0_0_25px_rgba(79,70,229,0.6)] cursor-pointer shrink-0">
+          開始挑戰 (25 關)
+        </button>
+      </div>
+    </div>
+
+    <!-- 遊戲主畫面 (教學期間暫時關閉 overflow-hidden，讓光暈與高亮能正常溢出不被擋住) -->
+    <div v-if="gameState === 'playing'" class="flex flex-col flex-1 h-full relative" :class="tutorialStep > 0 ? '' : 'overflow-hidden'">
+      
+      <!-- 頂部資訊列 -->
+      <div class="h-16 bg-gray-800 border-b border-gray-700 flex justify-between items-center px-6 transition-all duration-300" :class="{'tutorial-highlight': tutorialStep === 4}">
+        <h2 class="text-2xl font-bold text-green-400">關卡 {{ currentLevel + 1 }} <span class="text-gray-500 text-lg">/ 25</span></h2>
+        
+        <div class="flex items-center gap-4">
+          <div class="text-gray-300 font-bold">食神神力：</div>
+          <div class="flex gap-1 text-2xl">
+            <span v-for="n in 5" :key="n" class="transition-all duration-300" :class="{'opacity-30 grayscale': n > hintCount, 'opacity-100': n <= hintCount}">👨‍🍳</span>
+          </div>
+          <div class="flex gap-2 ml-4">
+            <button @click="prevLevel" :disabled="currentLevel === 0" class="w-10 h-10 flex items-center justify-center bg-gray-700 rounded-lg hover:bg-gray-600 disabled:opacity-30 transition-colors">◀</button>
+            <button @click="nextLevel" :disabled="currentLevel === levels.length - 1" class="w-10 h-10 flex items-center justify-center bg-gray-700 rounded-lg hover:bg-gray-600 disabled:opacity-30 transition-colors">▶</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 遊戲佈局：左側題目，右側作答區 -->
+      <div class="flex flex-1" :class="tutorialStep > 0 ? '' : 'overflow-hidden'">
+        
+        <!-- 左側：題目與提示 (移除 z-20 的堆疊限制，並在教學期間解除捲動軸) -->
+        <div class="w-1/3 bg-gray-900 border-r border-gray-700 flex flex-col p-6" :class="tutorialStep > 0 ? '' : 'overflow-y-auto'">
+          
+          <!-- 任務目標：加上了 bg-gray-800 實底背景，確保浮到最上層時不會透明 -->
+          <div class="flex-1 transition-all duration-300" :class="{'tutorial-highlight bg-gray-800 p-4 -mx-4 -mt-4 rounded-2xl': tutorialStep === 1}">
+            <h3 class="text-xl font-bold text-blue-400 mb-2">任務目標</h3>
+            <p class="text-gray-300 mb-6 text-lg leading-relaxed" v-html="currentLevelData.instruction"></p>
+            
+            <div class="bg-gray-800 rounded-xl p-4 border border-gray-700 shadow-inner">
+              <h4 class="text-sm font-semibold text-gray-400 uppercase mb-3 tracking-wider">配對提示</h4>
+              <div class="flex flex-wrap gap-3">
+                <div v-for="(hint, index) in currentLevelData.hints" :key="index" class="flex items-center bg-gray-700 px-3 py-1.5 rounded-md">
+                  <span class="text-xl mr-2">{{ hint.emoji }}</span>
+                  <span class="text-gray-200 text-sm font-medium">➔</span>
+                  <div :class="['flag scale-75 ml-2 origin-left', 'flag-' + hint.country]"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 提示與解題按鈕 -->
+          <div class="mt-6 flex flex-col gap-3 transition-all duration-300" :class="{'tutorial-highlight bg-gray-800 p-4 -mx-4 -mb-4 rounded-2xl': tutorialStep === 5}">
+            <button @click="useHint" :disabled="isSuccess" class="py-3 px-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold flex items-center justify-center transition-colors shadow-lg">
+              <span class="mr-2">💡</span> 觀看解題提示 (免費)
+            </button>
+            <button @click="showSolution" :disabled="hintCount <= 0 || isSuccess" class="py-3 px-4 bg-red-600 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold flex items-center justify-center transition-colors shadow-lg">
+              <span class="mr-2">🆘</span> 直接看解答 (消耗 1 神力)
+            </button>
+          </div>
+          
+          <!-- 提示文字顯示區 -->
+          <div v-if="currentHint" class="mt-4 p-4 bg-blue-900/50 border border-blue-700 text-blue-200 rounded-xl text-sm font-medium animate-[fade-in_0.3s_ease-out] leading-relaxed">
+            {{ currentHint }}
+          </div>
+        </div>
+
+        <!-- 右側：編輯區與預覽區 -->
+        <div class="flex-1 flex flex-col relative" :class="tutorialStep > 0 ? '' : 'overflow-hidden'">
+          
+          <!-- 編輯區 -->
+          <div class="h-1/2 bg-[#282c34] flex flex-col transition-all duration-300" :class="{'tutorial-highlight': tutorialStep === 3}">
+            <div class="bg-[#21252b] px-4 py-2 text-sm text-gray-400 font-mono border-b border-gray-700 flex justify-between items-center shadow-md z-10">
+              <div class="flex items-center">
+                <span class="text-red-400 mr-2">●</span>
+                <span class="text-yellow-400 mr-2">●</span>
+                <span class="text-green-400 mr-4">●</span>
+                style.css
+              </div>
+              <div class="text-xs text-gray-500">輸入 CSS 屬性即可</div>
+            </div>
+            
+            <div class="flex-1 p-4 font-mono text-lg relative" :class="tutorialStep > 0 ? '' : 'overflow-y-auto'">
+              <div class="editor-line">
+                <div class="line-number">1</div>
+                <div class="code-content"><span class="selector">#bento-box</span> <span class="punctuation">{</span></div>
+              </div>
+              <div class="editor-line">
+                <div class="line-number">2</div>
+                <div class="code-content pl-8"><span class="property">display</span><span class="punctuation">:</span> <span class="value">flex</span><span class="punctuation">;</span></div>
+              </div>
+              
+              <!-- 唯讀屬性顯示 -->
+              <div class="editor-line" v-for="(val, prop) in currentLevelData.readonlyStyles" :key="prop">
+                <div class="line-number">-</div>
+                <div class="code-content pl-8 opacity-70">
+                  <span class="property">{{ prop }}</span><span class="punctuation">:</span> <span class="value">{{ val }}</span><span class="punctuation">;</span>
+                </div>
+              </div>
+
+              <!-- 使用者輸入區 -->
+              <div class="editor-line relative">
+                <div class="line-number">3</div>
+                <div class="code-content pl-8 relative flex items-center">
+                  <textarea 
+                    ref="cssInput"
+                    v-model="userCss" 
+                    @input="checkAnswer"
+                    class="w-full bg-transparent text-gray-100 outline-none resize-none font-mono tracking-wide leading-relaxed mt-1"
+                    rows="4"
+                    placeholder="/* 在此輸入 flexbox 屬性 */"
+                    spellcheck="false"
+                    :disabled="isSuccess"
+                  ></textarea>
+                </div>
+              </div>
+              <div class="editor-line">
+                <div class="line-number">4</div>
+                <div class="code-content"><span class="punctuation">}</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 視覺預覽區 -->
+          <div class="h-1/2 bento-board p-6 relative transition-all duration-300" :class="{'tutorial-highlight': tutorialStep === 2, 'overflow-hidden': tutorialStep !== 2}">
+            <!-- 目標位置疊影 (背景國旗) -->
+            <div class="absolute inset-0 p-6 pointer-events-none flex z-0 opacity-80" :style="targetStyle">
+              <div v-for="(item, index) in currentLevelData.items" :key="'target-'+index" class="p-2">
+                <div :class="['flag', 'flag-' + item.country]"></div>
+              </div>
+            </div>
+
+            <!-- 實際排列的食物 -->
+            <div class="w-full h-full border-4 border-gray-600 rounded-xl relative z-10 flex bg-gray-800/80 shadow-2xl transition-all duration-300" :style="appliedStyle" id="bento-box">
+              <div v-for="(item, index) in currentLevelData.items" :key="'food-'+index" class="p-2 transition-all duration-500">
+                <div class="food-item">{{ item.emoji }}</div>
+              </div>
+            </div>
+
+            <!-- 過關疊加層 -->
+            <div v-if="isSuccess" class="absolute inset-0 z-40 success-overlay flex flex-col items-center justify-center bg-black/70 rounded-xl backdrop-blur-sm m-6 border-2 border-yellow-500/50 p-4 text-center overflow-y-auto">
+              <div class="text-[4rem] md:text-[5rem] mb-2 god-glow shrink-0">👨‍🍳</div>
+              <h2 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 mb-4 drop-shadow-lg shrink-0">
+                太美味了！
+              </h2>
+              <button @click="nextLevel" class="px-6 py-2 md:px-8 md:py-3 bg-green-500 hover:bg-green-400 text-gray-900 rounded-full text-lg md:text-xl font-bold shadow-[0_0_20px_rgba(34,197,94,0.6)] transform transition hover:scale-105 shrink-0">
+                {{ currentLevel === levels.length - 1 ? '完成挑戰' : '下一道菜 ➔' }}
+              </button>
+            </div>
+          </div>
+          
+        </div>
+      </div>
+
+      <!-- 教學疊加層：半透明背景 (低於高亮區塊的 z-110) -->
+      <div v-if="tutorialStep > 0 && tutorialStep <= 5" class="absolute inset-0 z-[100] pointer-events-none bg-black/60 transition-opacity"></div>
+      
+      <!-- 教學疊加層：對話框本體 (高於高亮區塊，設為 z-120 確保絕對不會被蓋住) -->
+      <div v-if="tutorialStep > 0 && tutorialStep <= 5" class="absolute inset-0 z-[120] pointer-events-none">
+        <div class="absolute pointer-events-auto bg-white text-gray-900 p-5 rounded-xl shadow-2xl max-w-sm transition-all duration-300 ease-out" :style="tutorialTooltipStyle">
+          <h4 class="font-bold text-lg mb-2 text-blue-600 flex items-center">
+             新手教學 ({{tutorialStep}}/5)
+          </h4>
+          <p class="mb-4 text-base leading-relaxed">{{ tutorialText }}</p>
+          <div class="flex justify-end">
+            <button @click="nextTutorial" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold text-sm transition-colors">
+              {{ tutorialStep === 5 ? '開始遊戲' : '下一步' }}
+            </button>
+          </div>
+          <div class="absolute w-4 h-4 bg-white rotate-45 transition-all duration-300 ease-out" :style="tutorialArrowStyle"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 全破結局畫面 (食神畫面) -->
+    <div v-if="gameState === 'end'" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-b from-gray-900 to-indigo-950 overflow-hidden">
+      <!-- 彩帶特效 -->
+      <div v-for="n in 50" :key="'confetti-'+n" class="confetti" :style="getConfettiStyle()"></div>
+      
+      <div class="relative z-10 flex flex-col items-center bg-black/40 p-8 md:p-16 rounded-3xl backdrop-blur-md border border-yellow-500/30 shadow-[0_0_50px_rgba(250,204,21,0.2)] max-h-[90vh] overflow-y-auto w-11/12 max-w-4xl text-center">
+        <div class="text-[8rem] md:text-[12rem] mb-6 god-bounce drop-shadow-[0_0_80px_rgba(250,204,21,0.8)] shrink-0">👨‍🍳</div>
+        <h1 class="text-4xl md:text-6xl font-extrabold mb-6 tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-yellow-400 to-yellow-600 drop-shadow-md shrink-0">
+          謝謝你協助食神配對各國美食！
+        </h1>
+        <p class="text-xl md:text-2xl text-gray-300 mb-10 font-light max-w-2xl shrink-0">
+          你已經精通了 Flexbox 的擺盤技巧，成為了真正的網頁排版大師！食神對你的表現非常滿意。
+        </p>
+        
+        <div class="flex flex-wrap justify-center gap-4 md:gap-6 shrink-0">
+           <button @click="resetGame" class="px-6 py-3 md:px-8 md:py-4 bg-gray-700 hover:bg-gray-600 rounded-full text-lg md:text-xl font-bold transition-transform transform hover:scale-105 shadow-lg border border-gray-600">
+            回到首頁
+          </button>
+          <button @click="restartGame" class="px-6 py-3 md:px-8 md:py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 rounded-full text-lg md:text-xl font-bold text-gray-900 transition-transform transform hover:scale-105 shadow-[0_0_20px_rgba(245,158,11,0.5)]">
+            再來一次
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const { createApp, ref, computed, watch, onMounted, nextTick } = Vue;
+
+    const levels = [
+      // Level 1: justify-content: flex-end
+      {
+        instruction: "義大利麵要送到義大利！<br>請使用 <span class='text-blue-400 font-mono'>justify-content</span> 將食物推到最右邊。",
+        hints: [ { emoji: '🍝', country: 'it' } ],
+        items: [ { emoji: '🍝', country: 'it' } ],
+        targetCss: { 'justify-content': 'flex-end' },
+        readonlyStyles: {},
+        tips: ["justify-content 可以控制主軸(水平)的對齊方式。", "試試看 flex-end 這個值。"]
+      },
+      // Level 2: justify-content: center
+      {
+        instruction: "珍珠奶茶是台灣之光！<br>請將它置中對齊送到台灣。",
+        hints: [ { emoji: '🧋', country: 'tw' } ],
+        items: [ { emoji: '🧋', country: 'tw' } ],
+        targetCss: { 'justify-content': 'center' },
+        readonlyStyles: {},
+        tips: ["想要置中，justify-content 有個很直覺的值。", "center 是你的好朋友。"]
+      },
+      // Level 3: justify-content: space-between
+      {
+        instruction: "美式漢堡和日本壽司分別在世界的兩端。<br>請將它們推向左右兩側。",
+        hints: [ { emoji: '🍔', country: 'us' }, { emoji: '🍣', country: 'jp' } ],
+        items: [ { emoji: '🍔', country: 'us' }, { emoji: '🍣', country: 'jp' } ],
+        targetCss: { 'justify-content': 'space-between' },
+        readonlyStyles: {},
+        tips: ["space-between 可以在元素之間平均分配空白，並將元素推向兩端。"]
+      },
+      // Level 4: justify-content: space-around
+      {
+        instruction: "韓國泡菜、台灣珍奶、德國啤酒。<br>請讓它們周圍有平均的空間。",
+        hints: [ { emoji: '🍲', country: 'kr' }, { emoji: '🧋', country: 'tw' }, { emoji: '🍺', country: 'de' } ],
+        items: [ { emoji: '🍲', country: 'kr' }, { emoji: '🧋', country: 'tw' }, { emoji: '🍺', country: 'de' } ],
+        targetCss: { 'justify-content': 'space-around' },
+        readonlyStyles: {},
+        tips: ["space-around 會在每個元素周圍分配相等的空間。"]
+      },
+      // Level 5: justify-content: space-evenly
+      {
+        instruction: "法式麵包、義大利披薩、墨西哥夾餅。<br>這次要讓所有間距（包含邊緣）都完全一樣大。",
+        hints: [ { emoji: '🥖', country: 'fr' }, { emoji: '🍕', country: 'it' }, { emoji: '🌮', country: 'mx' } ],
+        items: [ { emoji: '🥖', country: 'fr' }, { emoji: '🍕', country: 'it' }, { emoji: '🌮', country: 'mx' } ],
+        targetCss: { 'justify-content': 'space-evenly' },
+        readonlyStyles: {},
+        tips: ["比起 space-around，space-evenly 讓最外側的間距也和中間的間距一樣大。"]
+      },
+      // Level 6: align-items: flex-end
+      {
+        instruction: "印度咖哩掉到下面了！<br>請使用 <span class='text-blue-400 font-mono'>align-items</span> 將它移到底部。",
+        hints: [ { emoji: '🍛', country: 'in' } ],
+        items: [ { emoji: '🍛', country: 'in' } ],
+        targetCss: { 'align-items': 'flex-end' },
+        readonlyStyles: {},
+        tips: ["align-items 控制交錯軸(垂直)的對齊方式。", "往下對齊請用 flex-end。"]
+      },
+      // Level 7: align-items: center
+      {
+        instruction: "越南河粉需要在正中間享用。<br>請將它垂直置中。",
+        hints: [ { emoji: '🍜', country: 'vn' } ],
+        items: [ { emoji: '🍜', country: 'vn' } ],
+        targetCss: { 'align-items': 'center' },
+        readonlyStyles: {},
+        tips: ["垂直置中一樣是用 center。"]
+      },
+      // Level 8: justify-content & align-items
+      {
+        instruction: "英國下午茶喜歡在正中央。<br>請同時使用 <span class='text-blue-400 font-mono'>justify-content</span> 和 <span class='text-blue-400 font-mono'>align-items</span> 將它完全置中。",
+        hints: [ { emoji: '☕', country: 'gb' } ],
+        items: [ { emoji: '☕', country: 'gb' } ],
+        targetCss: { 'justify-content': 'center', 'align-items': 'center' },
+        readonlyStyles: {},
+        tips: ["你需要寫兩行 CSS，一行水平置中，一行垂直置中。"]
+      },
+      // Level 9: justify-content & align-items (corners)
+      {
+        instruction: "美式熱狗在右下角！<br>把它送到對應的位置。",
+        hints: [ { emoji: '🌭', country: 'us' } ],
+        items: [ { emoji: '🌭', country: 'us' } ],
+        targetCss: { 'justify-content': 'flex-end', 'align-items': 'flex-end' },
+        readonlyStyles: {},
+        tips: ["水平靠右，垂直靠下，各需要一個屬性。"]
+      },
+      // Level 10: flex-direction: column
+      {
+        instruction: "食物排成直的了！<br>請使用 <span class='text-blue-400 font-mono'>flex-direction</span> 改變排列方向。",
+        hints: [ { emoji: '🍣', country: 'jp' }, { emoji: '🧋', country: 'tw' }, { emoji: '🍕', country: 'it' } ],
+        items: [ { emoji: '🍣', country: 'jp' }, { emoji: '🧋', country: 'tw' }, { emoji: '🍕', country: 'it' } ],
+        targetCss: { 'flex-direction': 'column' },
+        readonlyStyles: {},
+        tips: ["flex-direction 預設是 row (橫向)。", "要變成直的，請設定為 column。"]
+      },
+      // Level 11: flex-direction: row-reverse
+      {
+        instruction: "順序反了！<br>請使用 <span class='text-blue-400 font-mono'>flex-direction</span> 將原本的橫向排列反轉。",
+        hints: [ { emoji: '🌮', country: 'mx' }, { emoji: '🥖', country: 'fr' }, { emoji: '🍺', country: 'de' } ],
+        items: [ { emoji: '🍺', country: 'de' }, { emoji: '🥖', country: 'fr' }, { emoji: '🌮', country: 'mx' } ],
+        targetCss: { 'flex-direction': 'row-reverse' },
+        readonlyStyles: {},
+        tips: ["想要從右排到左，可以使用 row-reverse。"]
+      },
+      // Level 12: flex-direction: column-reverse
+      {
+        instruction: "由下往上排！<br>結合 column 和 reverse 的概念。",
+        hints: [ { emoji: '🍔', country: 'us' }, { emoji: '🍝', country: 'it' }, { emoji: '🍜', country: 'vn' } ],
+        items: [ { emoji: '🍜', country: 'vn' }, { emoji: '🍝', country: 'it' }, { emoji: '🍔', country: 'us' } ],
+        targetCss: { 'flex-direction': 'column-reverse' },
+        readonlyStyles: {},
+        tips: ["直向排列並且反轉順序，就是 column-reverse。"]
+      },
+      // Level 13: flex-direction & justify-content (column)
+      {
+        instruction: "注意！當方向變成 column 時，主軸和交錯軸會互換。<br>現在要把這排食物推到底部。",
+        hints: [ { emoji: '🍛', country: 'in' }, { emoji: '🍲', country: 'kr' } ],
+        items: [ { emoji: '🍛', country: 'in' }, { emoji: '🍲', country: 'kr' } ],
+        targetCss: { 'flex-direction': 'column', 'justify-content': 'flex-end' },
+        readonlyStyles: {},
+        tips: ["先設定 flex-direction: column。", "這時 justify-content 會變成控制垂直方向！"]
+      },
+      // Level 14: flex-direction & align-items (column)
+      {
+        instruction: "直向排列，並且靠右對齊。<br>記得軸向互換的規則！",
+        hints: [ { emoji: '☕', country: 'gb' }, { emoji: '🧋', country: 'tw' } ],
+        items: [ { emoji: '☕', country: 'gb' }, { emoji: '🧋', country: 'tw' } ],
+        targetCss: { 'flex-direction': 'column', 'align-items': 'flex-end' },
+        readonlyStyles: {},
+        tips: ["先 column。", "在 column 模式下，align-items 會控制水平方向！"]
+      },
+      // Level 15: flex-direction, justify-content, align-items
+      {
+        instruction: "直向排列、反轉順序、置中、靠右。<br>綜合大考驗！",
+        hints: [ { emoji: '🍕', country: 'it' }, { emoji: '🍣', country: 'jp' } ],
+        items: [ { emoji: '🍣', country: 'jp' }, { emoji: '🍕', country: 'it' } ],
+        targetCss: { 'flex-direction': 'column-reverse', 'justify-content': 'center', 'align-items': 'flex-end' },
+        readonlyStyles: {},
+        tips: ["三行程式碼解決它。", "方向：column-reverse", "主軸(垂直)：center", "交錯軸(水平)：flex-end"]
+      },
+      // Level 16: flex-wrap: wrap
+      {
+        instruction: "食物太多擠在一起了！<br>請使用 <span class='text-blue-400 font-mono'>flex-wrap</span> 讓它們換行。",
+        hints: [ { emoji: '🍔', country: 'us' }, { emoji: '🌮', country: 'mx' }, { emoji: '🍝', country: 'it' }, { emoji: '🍺', country: 'de' }, { emoji: '🍜', country: 'vn' }, { emoji: '🧋', country: 'tw' } ],
+        items: [ { emoji: '🍔', country: 'us' }, { emoji: '🌮', country: 'mx' }, { emoji: '🍝', country: 'it' }, { emoji: '🍺', country: 'de' }, { emoji: '🍜', country: 'vn' }, { emoji: '🧋', country: 'tw' } ],
+        targetCss: { 'flex-wrap': 'wrap' },
+        readonlyStyles: { 'width': '200px' }, // 強制寬度以展示 wrap
+        tips: ["flex-wrap 預設是 nowrap (不換行)。", "設定為 wrap 就可以讓超出空間的元素換到下一行。"]
+      },
+      // Level 17: flex-wrap: wrap-reverse
+      {
+        instruction: "換行，但是從下往上換！",
+        hints: [ { emoji: '🥖', country: 'fr' }, { emoji: '🍛', country: 'in' }, { emoji: '☕', country: 'gb' }, { emoji: '🍲', country: 'kr' } ],
+        items: [ { emoji: '🥖', country: 'fr' }, { emoji: '🍛', country: 'in' }, { emoji: '☕', country: 'gb' }, { emoji: '🍲', country: 'kr' } ],
+        targetCss: { 'flex-wrap': 'wrap-reverse' },
+        readonlyStyles: { 'width': '150px' },
+        tips: ["wrap-reverse 會讓新的一行出現在原本那行的上方。"]
+      },
+      // Level 18: flex-flow
+      {
+        instruction: "<span class='text-blue-400 font-mono'>flex-flow</span> 是 direction 和 wrap 的縮寫。<br>請設定直向排列並且換行。",
+        hints: [ { emoji: '🍕', country: 'it' }, { emoji: '🍣', country: 'jp' }, { emoji: '🍔', country: 'us' }, { emoji: '🧋', country: 'tw' } ],
+        items: [ { emoji: '🍕', country: 'it' }, { emoji: '🍣', country: 'jp' }, { emoji: '🍔', country: 'us' }, { emoji: '🧋', country: 'tw' } ],
+        targetCss: { 'flex-flow': 'column wrap' },
+        readonlyStyles: { 'height': '150px' },
+        tips: ["語法：flex-flow: <direction> <wrap>;", "試試看 column wrap。"]
+      },
+      // Level 19: align-content: flex-start
+      {
+        instruction: "當有多行元素時，<span class='text-blue-400 font-mono'>align-content</span> 可以控制行與行之間的對齊。<br>請把所有食物往上集中。",
+        hints: [ { emoji: '🍺', country: 'de' }, { emoji: '🌮', country: 'mx' }, { emoji: '🍜', country: 'vn' }, { emoji: '🍝', country: 'it' }, { emoji: '☕', country: 'gb' }, { emoji: '🍛', country: 'in' } ],
+        items: [ { emoji: '🍺', country: 'de' }, { emoji: '🌮', country: 'mx' }, { emoji: '🍜', country: 'vn' }, { emoji: '🍝', country: 'it' }, { emoji: '☕', country: 'gb' }, { emoji: '🍛', country: 'in' } ],
+        targetCss: { 'align-content': 'flex-start' },
+        readonlyStyles: { 'flex-wrap': 'wrap', 'width': '200px' },
+        tips: ["align-content 控制多行的整體垂直對齊。", "flex-start 讓行群組靠上。"]
+      },
+      // Level 20: align-content: flex-end
+      {
+        instruction: "這次把多行食物往下集中。",
+        hints: [ { emoji: '🧋', country: 'tw' }, { emoji: '🥖', country: 'fr' }, { emoji: '🍲', country: 'kr' }, { emoji: '🍣', country: 'jp' } ],
+        items: [ { emoji: '🧋', country: 'tw' }, { emoji: '🥖', country: 'fr' }, { emoji: '🍲', country: 'kr' }, { emoji: '🍣', country: 'jp' } ],
+        targetCss: { 'align-content': 'flex-end' },
+        readonlyStyles: { 'flex-wrap': 'wrap', 'width': '150px' },
+        tips: ["使用 flex-end 把多行推到底部。"]
+      },
+      // Level 21: align-content: center
+      {
+        instruction: "把多行食物集中在正中央。",
+        hints: [ { emoji: '🍔', country: 'us' }, { emoji: '🍕', country: 'it' }, { emoji: '🌮', country: 'mx' }, { emoji: '🍜', country: 'vn' }, { emoji: '🍺', country: 'de' } ],
+        items: [ { emoji: '🍔', country: 'us' }, { emoji: '🍕', country: 'it' }, { emoji: '🌮', country: 'mx' }, { emoji: '🍜', country: 'vn' }, { emoji: '🍺', country: 'de' } ],
+        targetCss: { 'align-content': 'center' },
+        readonlyStyles: { 'flex-wrap': 'wrap', 'width': '180px' },
+        tips: ["center 可以讓多行群組垂直置中。"]
+      },
+      // Level 22: align-content: space-between
+      {
+        instruction: "讓多行食物在垂直方向撐開，上下貼齊邊緣。",
+        hints: [ { emoji: '🍝', country: 'it' }, { emoji: '🍛', country: 'in' }, { emoji: '☕', country: 'gb' }, { emoji: '🧋', country: 'tw' } ],
+        items: [ { emoji: '🍝', country: 'it' }, { emoji: '🍛', country: 'in' }, { emoji: '☕', country: 'gb' }, { emoji: '🧋', country: 'tw' } ],
+        targetCss: { 'align-content': 'space-between' },
+        readonlyStyles: { 'flex-wrap': 'wrap', 'width': '150px' },
+        tips: ["space-between 會讓第一行貼頂，最後一行貼底，中間均分。"]
+      },
+      // Level 23: align-content: space-around
+      {
+        instruction: "讓多行食物的行距平均分配。",
+        hints: [ { emoji: '🍣', country: 'jp' }, { emoji: '🥖', country: 'fr' }, { emoji: '🍲', country: 'kr' }, { emoji: '🌮', country: 'mx' }, { emoji: '🍺', country: 'de' } ],
+        items: [ { emoji: '🍣', country: 'jp' }, { emoji: '🥖', country: 'fr' }, { emoji: '🍲', country: 'kr' }, { emoji: '🌮', country: 'mx' }, { emoji: '🍺', country: 'de' } ],
+        targetCss: { 'align-content': 'space-around' },
+        readonlyStyles: { 'flex-wrap': 'wrap', 'width': '180px' },
+        tips: ["space-around 讓每行上下都有相等的空間。"]
+      },
+      // Level 24: Ultimate Challenge 1
+      {
+        instruction: "終極挑戰！直向排列，換行，將多行集中在右側，內容置中。<br>注意：因為方向是 column，align-content 會控制水平喔！",
+        hints: [ { emoji: '🧋', country: 'tw' }, { emoji: '🍕', country: 'it' }, { emoji: '🍔', country: 'us' }, { emoji: '🍣', country: 'jp' }, { emoji: '🍜', country: 'vn' }, { emoji: '☕', country: 'gb' } ],
+        items: [ { emoji: '🧋', country: 'tw' }, { emoji: '🍕', country: 'it' }, { emoji: '🍔', country: 'us' }, { emoji: '🍣', country: 'jp' }, { emoji: '🍜', country: 'vn' }, { emoji: '☕', country: 'gb' } ],
+        targetCss: { 'flex-direction': 'column', 'flex-wrap': 'wrap', 'align-content': 'flex-end', 'justify-content': 'center' },
+        readonlyStyles: { 'height': '200px' },
+        tips: ["方向: column", "換行: wrap", "行群組對齊(水平): flex-end", "主軸對齊(垂直): center"]
+      },
+      // Level 25: Ultimate Challenge 2
+      {
+        instruction: "最後一關！反向直向排列，從左到右換行(wrap-reverse)，行群組平均分配(space-around)，內容靠底。<br>向食神證明你的實力！",
+        hints: [ { emoji: '🌮', country: 'mx' }, { emoji: '🍛', country: 'in' }, { emoji: '🥖', country: 'fr' }, { emoji: '🍺', country: 'de' }, { emoji: '🍲', country: 'kr' }, { emoji: '🍝', country: 'it' } ],
+        items: [ { emoji: '🌮', country: 'mx' }, { emoji: '🍛', country: 'in' }, { emoji: '🥖', country: 'fr' }, { emoji: '🍺', country: 'de' }, { emoji: '🍲', country: 'kr' }, { emoji: '🍝', country: 'it' } ],
+        targetCss: { 'flex-direction': 'column-reverse', 'flex-wrap': 'wrap-reverse', 'align-content': 'space-around', 'justify-content': 'flex-start' },
+        readonlyStyles: { 'height': '220px' },
+        tips: ["方向: column-reverse", "換行: wrap-reverse", "行群組對齊: space-around", "主軸對齊: flex-start (因為 reverse，起點在底部)"]
+      }
+    ];
+
+    createApp({
+      setup() {
+        const gameState = ref('start'); // start, playing, end
+        const currentLevel = ref(0);
+        const userCss = ref('');
+        const isSuccess = ref(false);
+        const cssInput = ref(null);
+        
+        const hintCount = ref(5);
+        const currentHint = ref('');
+        const hintStep = ref(0);
+
+        const tutorialStep = ref(0); // 0: off, 1-5: steps
+        
+        // 勝利音效設定
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        const playWinSound = () => {
+          if(audioCtx.state === 'suspended') audioCtx.resume();
+          
+          const playTone = (freq, type, time, duration, vol) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime + time);
+            gain.gain.setValueAtTime(0, audioCtx.currentTime + time);
+            gain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + time + 0.1);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + time + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(audioCtx.currentTime + time);
+            osc.stop(audioCtx.currentTime + time + duration);
+          };
+
+          // 勝利樂句
+          playTone(523.25, 'sine', 0, 0.2, 0.3); // C5
+          playTone(659.25, 'sine', 0.2, 0.2, 0.3); // E5
+          playTone(783.99, 'sine', 0.4, 0.2, 0.3); // G5
+          playTone(1046.50, 'sine', 0.6, 0.5, 0.4); // C6
+          
+          playTone(523.25, 'triangle', 0, 0.2, 0.2); 
+          playTone(659.25, 'triangle', 0.2, 0.2, 0.2); 
+          playTone(783.99, 'triangle', 0.4, 0.2, 0.2); 
+          playTone(1046.50, 'triangle', 0.6, 0.5, 0.3);
+        };
+
+        const currentLevelData = computed(() => levels[currentLevel.value]);
+
+        const startScreenItems = Array.from({length: 20}).map(() => {
+           const emojis = ['🍝','🧋','🍔','🍣','🍲','🍺','🥖','🍕','🌮','🍛','🍜','☕','🌭'];
+           return {
+             emoji: emojis[Math.floor(Math.random() * emojis.length)],
+             style: {
+               left: `${Math.random() * 100}vw`,
+               animationDuration: `${10 + Math.random() * 15}s`,
+               animationDelay: `${-Math.random() * 20}s`,
+               fontSize: `${2 + Math.random() * 3}rem`
+             }
+           }
+        });
+
+        // 解析使用者輸入的 CSS 為物件格式
+        const parseUserCss = (cssString) => {
+          const rules = {};
+          const declarations = cssString.split(';');
+          for (let decl of declarations) {
+            const parts = decl.split(':');
+            if (parts.length === 2) {
+              const prop = parts[0].trim();
+              const val = parts[1].trim();
+              if (prop && val) {
+                rules[prop] = val;
+              }
+            }
+          }
+          return rules;
+        };
+
+        const appliedStyle = computed(() => {
+          const base = { display: 'flex' };
+          const readonly = currentLevelData.value.readonlyStyles || {};
+          const userParsed = parseUserCss(userCss.value);
+          return { ...base, ...readonly, ...userParsed };
+        });
+
+        const targetStyle = computed(() => {
+          const base = { display: 'flex' };
+          const readonly = currentLevelData.value.readonlyStyles || {};
+          const target = currentLevelData.value.targetCss;
+          return { ...base, ...readonly, ...target };
+        });
+
+        const checkAnswer = () => {
+          const userParsed = parseUserCss(userCss.value);
+          const target = currentLevelData.value.targetCss;
+          
+          let correct = true;
+          for (const key in target) {
+            // 忽略多餘空白與引號進行比對
+            const uVal = (userParsed[key] || '').replace(/['"]/g, '').replace(/\s+/g, ' ').trim();
+            const tVal = target[key].replace(/['"]/g, '').replace(/\s+/g, ' ').trim();
+            if (uVal !== tVal) {
+              correct = false;
+              break;
+            }
+          }
+
+          if (correct) {
+            isSuccess.value = true;
+          }
+        };
+
+        const loadLevel = (index) => {
+          currentLevel.value = index;
+          userCss.value = '';
+          isSuccess.value = false;
+          currentHint.value = '';
+          hintStep.value = 0;
+          nextTick(() => {
+            if (cssInput.value) cssInput.value.focus();
+          });
+        };
+
+        const nextLevel = () => {
+          if (currentLevel.value < levels.length - 1) {
+            loadLevel(currentLevel.value + 1);
+          } else {
+             // 全部通關
+             gameState.value = 'end';
+             playWinSound(); // 播放音效
+          }
+        };
+
+        const prevLevel = () => {
+          if (currentLevel.value > 0) {
+            loadLevel(currentLevel.value - 1);
+          }
+        };
+        
+        const resetGame = () => {
+           gameState.value = 'start';
+           currentLevel.value = 0;
+           hintCount.value = 5;
+           loadLevel(0);
+        };
+        
+        const restartGame = () => {
+           gameState.value = 'playing';
+           currentLevel.value = 0;
+           hintCount.value = 5;
+           loadLevel(0);
+        };
+
+        const useHint = () => {
+          const tips = currentLevelData.value.tips;
+          if (hintStep.value < tips.length) {
+            currentHint.value = tips[hintStep.value];
+            hintStep.value++;
+          } else {
+             // 讓提示可以循環播放，對新手更友善
+             hintStep.value = 0;
+             currentHint.value = tips[hintStep.value];
+             hintStep.value++;
+          }
+        };
+
+        const showSolution = () => {
+          if (hintCount.value <= 0) {
+            currentHint.value = "神力不足！無法直接看解答。";
+            return;
+          }
+          hintCount.value--;
+          
+          let cssStr = '';
+          for (const key in currentLevelData.value.targetCss) {
+            cssStr += `${key}: ${currentLevelData.value.targetCss[key]};\n`;
+          }
+          userCss.value = cssStr;
+          checkAnswer();
+        };
+
+        const startGame = () => {
+          gameState.value = 'playing';
+          tutorialStep.value = 1;
+          loadLevel(0);
+        };
+
+        // 教學相關
+        const tutorialText = computed(() => {
+           switch(tutorialStep.value) {
+             case 1: return "這裡是任務說明區，會告訴你需要將食物送到哪個國家的國旗上。";
+             case 2: return "這裡是遊戲畫面，半透明的國旗是目標位置，鮮豔的食物是你要移動的對象。";
+             case 3: return "這是 CSS 編輯區。在第 3 行輸入 Flexbox 語法 (例如：justify-content: flex-end;)，食物就會跟著移動！";
+             case 4: return "這裡是關卡資訊和神力值。如果卡關，可以使用神力換取提示。";
+             case 5: return "準備好了嗎？輸入正確的 CSS 讓食物歸位吧！";
+             default: return "";
+           }
+        });
+
+        const tutorialTooltipStyle = computed(() => {
+          switch(tutorialStep.value) {
+            case 1: return { top: '30%', left: '35%' };
+            case 2: return { top: '60%', left: '35%' };
+            case 3: return { top: '20%', right: '35%' };
+            case 4: return { top: '80px', right: '20%' };
+            case 5: return { bottom: '20%', left: '35%' };
+            default: return {};
+          }
+        });
+        
+        const tutorialArrowStyle = computed(() => {
+           switch(tutorialStep.value) {
+            case 1: return { top: '50%', left: '-8px', marginTop: '-8px' };
+            case 2: return { top: '50%', right: '-8px', marginTop: '-8px' };
+            case 3: return { top: '50%', left: '-8px', marginTop: '-8px' };
+            case 4: return { top: '-8px', right: '50%', marginRight: '-8px' };
+            case 5: return { top: '50%', left: '-8px', marginTop: '-8px' };
+            default: return {};
+          }
+        });
+
+        const nextTutorial = () => {
+          if (tutorialStep.value < 5) {
+            tutorialStep.value++;
+          } else {
+            tutorialStep.value = 0;
+            if (cssInput.value) cssInput.value.focus();
+          }
+        };
+
+        // 監聽鍵盤事件避免輸入被干擾
+        onMounted(() => {
+          window.addEventListener('keydown', (e) => {
+             // 確保在遊戲中且沒過關時焦點在輸入框
+             if (gameState.value === 'playing' && !isSuccess.value && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                if (cssInput.value && document.activeElement !== cssInput.value) {
+                   cssInput.value.focus();
+                }
+             }
+          });
+        });
+        
+        const getConfettiStyle = () => {
+          const left = Math.random() * 100;
+          const animDuration = 3 + Math.random() * 3;
+          const animDelay = Math.random() * 5;
+          const colors = ['#fce7f3', '#fef08a', '#bbf7d0', '#bfdbfe', '#e9d5ff'];
+          const color = colors[Math.floor(Math.random() * colors.length)];
+          const width = 8 + Math.random() * 10;
+          const height = 15 + Math.random() * 15;
+          
+          return {
+            left: `${left}vw`,
+            top: '-20px',
+            width: `${width}px`,
+            height: `${height}px`,
+            backgroundColor: color,
+            animationDuration: `${animDuration}s`,
+            animationDelay: `${animDelay}s`
+          }
+        };
+
+        return {
+          levels,
+          currentLevel,
+          currentLevelData,
+          userCss,
+          appliedStyle,
+          targetStyle,
+          isSuccess,
+          checkAnswer,
+          nextLevel,
+          prevLevel,
+          cssInput,
+          hintCount,
+          useHint,
+          currentHint,
+          showSolution,
+          gameState,
+          startGame,
+          startScreenItems,
+          tutorialStep,
+          tutorialText,
+          tutorialTooltipStyle,
+          tutorialArrowStyle,
+          nextTutorial,
+          getConfettiStyle,
+          resetGame,
+          restartGame
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
